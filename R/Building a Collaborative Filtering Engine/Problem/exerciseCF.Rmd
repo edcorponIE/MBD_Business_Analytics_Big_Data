@@ -1,0 +1,235 @@
+# IE - Master in Business Analytics and Big Data
+Recommendation Systems
+
+Building a Collaborative Filtering Engine
+
+Author: FirstName LastName
+
+========================================================
+
+# Initialization
+
+Import libraries
+
+```{r}
+library(data.table)
+library("ggpubr")
+library("ggrepel")
+
+```
+
+Load the critics dataset.
+
+```{r}
+critics <- read.csv("C:/Users/Eduardo/Desktop/IE 2/Recommendation Engines/session 2/Data/critics.csv")
+
+```
+
+# 1) Pearson correlation coefficient 
+Calculate the Pearson correlation coefficient between Sophia and Nuria
+
+**Expected correlation between Sophia and Nuria**: 0.3651484
+
+```{r fig.width=7, fig.height=6}
+
+
+df_critics <- as.data.frame(critics)
+
+Sophia_critics <- df_critics[df_critics$User=="Sophia",]
+Nuria_critics <- df_critics[df_critics$User=="Nuria",]
+
+##We leave only the information of Sophia and Nuria, in two different list, to pass them as X and Y for doing the correaltion.
+
+correlation_Sophia_Nuria <- cor(as.numeric(Sophia_critics[,-1]),as.numeric(Nuria_critics[,-1]),us="complete.obs")
+correlation_Sophia_Nuria
+
+##From Sophia and Nuria independent data, we need to delete the first column (User), to have only numerical values. This is why we do the "-1"
+##We use the parameter "us" of "cor" function to say "you do not have to take into account NA values"
+
+```
+
+# 2) Compare two movie critics
+Using the calculated Pearson correlation in the previous section. Compare and show the movie ratings for Sophia and Nuria on a scatter plot. How is this compared with the same ratings of Maria and Nerea on a scatter plot? What about Chris and Jim? What it means?
+
+```{r fig.width=7, fig.height=6}
+
+df_critics_T <- setNames(data.frame(t(df_critics[,-1])), df_critics[,1])
+typeof(df_critics_T)
+
+##We transpose the data and put in the columns the name of the users to easily pass the information to the plot function ( aes(x=Sophia information saying "column Sophia", y=Nuria information saying "Nuria column"))
+
+plotSophiaNuria = ggplot(df_critics_T, aes(x=Sophia, y=Nuria)) +
+  geom_point() +
+  geom_text_repel(aes(label=rownames(df_critics_T))) +
+  geom_smooth(method="lm", se=F) +
+  labs(x="Sophia Ratings", y="Nuria Ratings", title="Sophia vs. Nuria")
+
+##With geom_text_repel we put the names of the films in each dot, to visualize better the result
+##With geom_smooth we show the correlation. It is important to put se=F becuase its TRUE by default and it shows the confidence interval, changing the plot to one that we dont want to have.
+
+plotSophiaNuria
+
+plotMariaNerea = ggplot(df_critics_T, aes(x=Maria, y=Nerea)) +
+  geom_point() +
+  geom_text_repel(aes(label=rownames(df_critics_T))) +
+  geom_smooth(method="lm", se=F) +
+  labs(x="Maria Ratings", y="Nerea Ratings", title="Maria vs. Nerea")
+
+plotMariaNerea
+
+plotChrisJim = ggplot(df_critics_T, aes(x=Chris, y=Jim)) +
+  geom_point() +
+  geom_text_repel(aes(label=rownames(df_critics_T))) +
+  geom_smooth(method="lm", se=F) +
+  labs(x="Chris Ratings", y="Jim Ratings", title="Chris vs. Jim")
+
+plotChrisJim
+
+```
+
+#####**Answering questions:**
+
+#####  -Sophia and Nuria have some correlation (not so strong, but positive correlation). This means that the grades of both are more or less similar (1-2, 2-2, 3-3, etc) but we have outliers that make the correlation not so strong (3-1 or 5-2)
+
+#####  -Maria and Nerea have a negative correlation. This means that several times when one likes something, the other dislikes it (1-4, 2-4, 2-5, etc.). This is because Maria has a lot of "2" (she is a difficult person to please...)
+
+#####  -Chris and Jim have a strong correlation. All the grades are very similar (+-1), so when some of them likes one film, the other likes it too, and viceversa (2-1, 3-2)
+
+
+
+
+# 3) Top Recommendations 
+Return the top-5 recommended movies for Sophia Use the weighted average of every other critic's rankings.
+
+**Expected result**:
+3.7917013044215, 'The Matrix'
+3.50776533175371, 'Forrest Gump'     
+3.33118834864677, 'The Sixth Sense' 
+3.11491825315719, 'Shakespeare in Love'
+2.9124513228665, 'Blade Runner'
+
+```{r fig.width=7, fig.height=6}
+
+critics$Mean <- NA
+arrayMeans <- array(dim = nrow(critics))
+
+for (row in 1:nrow(critics)) {
+  critics[row,]$Mean <- rowMeans(critics[row,-1], na.rm = T)
+  arrayMeans[row] <- rowMeans(critics[row,-1], na.rm = T)
+}
+
+##First of all, we need to calculate the average of the ratings of each User for all movies. We sabe this information in an array and in a new column called "Mean" (this "Mean" column was named in exercise 5 of NP markdown) 
+
+criticsNoNames <- critics[,-1]
+NormalizationCritics <- critics[,-1]
+
+for (row in 1:nrow(criticsNoNames)) {
+  for (col in 1:ncol(criticsNoNames)) {
+    NormalizationCritics[row,col] <- criticsNoNames[row,col] - criticsNoNames[row,]$Mean
+}}
+
+##The next step is to normalize the data set (this is the actual ratings of X user for all movies minus the ratings mean of X User (that we have calculated above))
+
+NormalizationCritics$Mean <- arrayMeans
+
+NormalizationCritics_minusSophia <- NormalizationCritics[-15,-21]
+NormalizationCritics_Sophia <- NormalizationCritics[15,-21]
+NormalizationCritics_Sophia <- as.double(NormalizationCritics_Sophia)
+
+##We need to isolate the row of User "Sophia" to do the Pearson Correlation of Sophia with the rest of users (the rest of "rows").
+##For doing the correlation, we do not have to take into account the new column "Mean"
+
+Corr <- array(dim = length(NormalizationCritics)-2)
+absCorr <- array(dim = length(NormalizationCritics)-2)
+sumCorr <- 0
+
+for (row in 1:nrow(NormalizationCritics_minusSophia)){
+  correlation_Sophia <- cor(x = NormalizationCritics_Sophia, y = as.double(NormalizationCritics_minusSophia[row,]), use = "complete.obs")
+  
+  Corr[row] <- correlation_Sophia 
+  absCorr[row] <- abs(correlation_Sophia)
+  sumCorr <- sum(sumCorr,abs(correlation_Sophia))
+  
+}
+
+##As commented, the next step was to do the Pearson Correlation of Sophia with the rest of users. We save the differente results in an array (Corr), the results in absolute values in another array (absCorr) and the sum of all absolute values in a variable sumCorr
+
+NormalizationCriticsNoMean <- NormalizationCritics[-15,-21]
+NormalizationCriticsCorr <- NormalizationCriticsNoMean
+
+for (row in 1:nrow(NormalizationCriticsNoMean)) {
+  for (col in 1:ncol(NormalizationCriticsNoMean)) {
+      NormalizationCriticsCorr[row,col] <- NormalizationCriticsNoMean[row,col] * Corr[row]
+}}
+
+##The next step is to multiple each value of the data that has been normalized by the results of the Pearson Correlation. As the array with Correlation values has the same items as rows (one per user), we can do the multiplication as it is shown above.
+
+sumMovies <- array(dim = length(NormalizationCriticsCorr))
+
+for (col in 1:ncol(NormalizationCriticsCorr)) {
+   sumMovies[col] <- sum(as.numeric(NormalizationCriticsCorr[,col]), na.rm = T)
+}
+
+##The next step is to sum the values per column of the data after the multiplication of above
+
+sumMoviesCorr <- array(data = sumMovies/sumCorr)
+
+##The sum of the values of the movies that we have just done needs to be divided by the sum of the absolute values of Pearson Correlation
+
+arrayMeansSophia <- array(data = arrayMeans[15], dim = length(arrayMeans))
+
+##The value 15 of above is because we want the information of Sophia, and we have seen that Sophia is number 15 in the data
+
+RecommentationSophia <- array(dim = length(sumMoviesCorr))
+
+for (i in 1:length(sumMoviesCorr)) {
+   RecommentationSophia[i] <- sum(sumMoviesCorr[i], arrayMeans[15], na.rm = T)
+}
+
+##The next step is to sum the average ratings of Sophia (arrayMeans in position 15 contains the mean ratings of Sophia) with the last division that we have done.
+
+df_critics <- as.data.frame(critics)
+Sophia_critics <- t(df_critics[df_critics$User=="Sophia",])
+Sophia_movies <- is.na(Sophia_critics[2:21,])
+
+RecommendationSophiaNameRates <- data.frame("Movies" = colnames(df_critics[,2:21]), "Sophia's Recommendation" = RecommentationSophia, "Movies Sophia watched" = Sophia_movies)
+
+RecommendationSophiaNameRates <- RecommendationSophiaNameRates[!(RecommendationSophiaNameRates$Movies.Sophia.watched=='FALSE'),]
+
+##We use, again, the boolean strategy to filter and have only the movies that Sophia has not rated
+
+RecommendationSophiaNameRates <- RecommendationSophiaNameRates[order(RecommendationSophiaNameRates$Sophia.s.Recommendation, decreasing = T),1:2]
+
+SOLUTION_RecommendationSophia <- RecommendationSophiaNameRates[1:5,]
+
+##Finally, we show only the top 5 values of films that Sophia has not rated
+
+SOLUTION_RecommendationSophia
+
+
+```
+
+# 4) Top similar critics
+Return the top 5 critics that are most similar to Sophia. 
+
+**Expected result**:
+0.9449112, 'Rachel'
+0.5976143, 'Ana' 
+0.5789794, 'Oriol'
+0.4925922, 'Maria'
+0.4273247, 'Carles'
+
+```{r fig.width=7, fig.height=6}
+
+Critics_Similar_Sophia <- data.frame("Users" = colnames(df_critics_T[,-15]), "Pearson Correlation" = Corr)
+
+##The critics more similar to Sophia are the critics with the highest correlation with Sophia, and we have calculated that in exercise 3: array "Corr" contains the correlation of Sophia with the rest of users.
+
+Critics_Similar_Sophia <- Critics_Similar_Sophia[order(Critics_Similar_Sophia$Pearson.Correlation, decreasing = T),]
+
+#Once we have created a data frame with the users and their correlations with Sophia, we just need to order and show the top 5
+
+SOLUTION_TopSimilarCritics <- Critics_Similar_Sophia[1:5,]
+SOLUTION_TopSimilarCritics
+
+```

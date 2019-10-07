@@ -1,0 +1,170 @@
+# IE - Master in Business Analytics and Big Data
+Recommendation Systems
+
+Building a Non Personalized Recommendation Engine
+
+Author: Eduardo Cort
+
+========================================================
+
+# Initialization
+
+Import libraries
+
+```{r}
+```
+
+Load the critics dataset.
+
+```{r}
+critics <- read.csv("C:/Users/Eduardo/Desktop/IE 2/Recommendation Engines/session 2/Data/critics.csv")
+
+```
+
+# 1) Top 5 Movies, by rating mean
+Calculate mean rating for each movie, ordered with the highest rating listed first, and plot the top 5.
+
+**Expected result**:
+3.600000, 'The Shawshank Redemption'
+3.266667, 'Star Wars IV - A New Hope'
+3.222222, 'Blade Runner'
+3.166667, 'Groundhog Day'
+3.062500, 'The Silence of the Lambs'
+
+```{r fig.width=7, fig.height=6}
+
+top <- colMeans(critics[,-1], na.rm=TRUE)
+top5 <- sort(top, decreasing=TRUE)[1:5]
+top5
+
+```
+
+# 2) Top 5 Movies, by rating distribution
+Calculate the percentage of ratings for each movie that are 4 stars or higher. Order with the highest percentage first, and plot the top 5 movies with more high ratings distribution.
+
+**Expected result**:
+0.7000000, 'The Shawshank Redemption'
+0.5333333, 'Star Wars IV - A New Hope'
+0.5000000, 'Gladiator'
+0.4444444, 'Blade Runner'
+0.4375000, 'The Silence of the Lambs'
+
+```{r fig.width=7, fig.height=6}
+
+top5_percentage <- sort(apply(critics[,-1],2,function(x) sum(x>=4, na.rm=T)/sum(x>=0, na.rm=T)),decreasing=T)[1:5]
+
+##With apply we can do the operation for the whole data set, taking into consideration the filter x>=4 too.
+
+```
+
+# 3) Top 5 Movies, by quantity of ratings
+Count the number of ratings for each movie, order the one with most number of ratings first, submit the top 5.
+
+**Expected result**:
+17, 'Toy Story'
+16, 'The Silence of the Lambs'
+15, 'Star Wars IV - A New Hope'
+14, 'Star Wars VI - Return of the Jedi'
+13, 'Independence Day'
+
+```{r fig.width=7, fig.height=6}
+
+top5_quantity <- sort(colSums(critics[,-1] > 0, na.rm = TRUE),decreasing=T)[1:5]
+top5_quantity
+
+##As in the exercises of above, we need to delete the column User (critics[,-1]) because if not not all data is numeric and therefore we cannot apply math operations
+```
+
+# 4) People who watched Star Wars IV also watched ...
+Calculate movies that most often occur with other movie. For each movie, calculate the percentage of the other movie raters who also rated that movie. Order with the highest percentage first, and submit the top 5. Select "Star.Wars.IV...A.New.Hope" movie by defaut. Use the (x+y)/x method.
+
+Top Occurences:
+0.9333333, 'Toy Story'
+0.8666667, 'Star Wars: Episode VI - Return of the Jedi'
+0.8000000, 'The Silence of the Lambs'
+0.7333333, 'Independence Day'
+0.6666667, 'Total Recall'
+
+```{r fig.width=7, fig.height=6}
+
+df_critics <- as.data.frame(critics[,-1])
+
+boolean_StarWarsIV <- df_critics[, colnames(df_critics) == "Star.Wars.IV...A.New.Hope"] > 0
+
+##We do this to obtain a list with FALSE or TRUE is a user has watched Star Wars IV
+
+df_booleean_StarWarsIV <- df_critics[replace(boolean_StarWarsIV,is.na(boolean_StarWarsIV),FALSE),colnames(df_critics) != "Star.Wars.IV...A.New.Hope"];
+
+##As we will do in the next exercise too, we need to change NA values to FALSE, because if not, if we delete the NA values, in the next steps we are gonna apply a list of FALSE TRUE for filtering the rows to a data set with more rows, and as we dont want to show the NA, we change it to FALSE.
+
+number_rows <- nrow(df_booleean_StarWarsIV)
+
+##This is to do the operation to get the percentage: we need to divide by the number of all rows (that will be the 100%).
+
+array_top_watched_films = c()
+
+for (i in 1:ncol(df_booleean_StarWarsIV)){
+  
+  array_top_watched_films[i] <- nrow(na.omit(as.data.frame(df_booleean_StarWarsIV[,i])))/number_rows
+  
+  ##Inside this for we create and array to save all the operations. Here is where I used the commented boolean list to filter and choose only users that have watched Star Wars IV (values TRUE of the list)
+  
+}
+
+top_watched_films <- data.frame(colnames(df_critics[,-1]),array_top_watched_films)
+
+##Here I created what will be the data frame with all the values for the solution: movie name and results.
+
+solution <- as.data.frame(top_watched_films[order(-array_top_watched_films),])
+
+##Sort from highest value to lowest
+
+top5_solution <- solution[1:5,1:2]
+top5_solution
+
+#Showing just the first five.
+
+##As I commented you by email, in my opinion this solution is not very good in terms of number of operations done, but at the end the results are shown.
+
+```
+
+
+# 5) People who liked Babe also liked ...
+Calculate the movies better rated of people who liked a movie. Select the people who liked the movie "Babe" (4 or 5 stars) and provide the top 5 movies they liked most.
+
+**Expected result**:
+5.000, 'Pulp.Fiction'
+5.000, 'Groundhog.Day'
+4.500, 'The.Shawshank.Redemption'
+4.333, 'Toy.Story'
+4.000, 'Blade.Runner'
+
+```{r fig.width=7, fig.height=6}
+
+boolean_Babe <- df_critics[, colnames(df_critics) == "Babe"] > 0
+boolean_critics <- apply(critics[,-1],2,function(x) (x>=4))
+
+##We used apply to filter and leave only rows with values higher than 4
+
+boolean_critics[is.na(boolean_critics[,"Babe"])] <- FALSE
+
+##Then here I used again the strategy of changing NA values of my list of FALSE and TRUE (being TRUE a row which user has seen Babe) to have the same number of rows than in the data set where I am going to apply this boolean strategy.
+
+Babe_critics <- critics[boolean_critics[,"Babe"],]
+Babe_critics_length <- ncol(Babe_critics)-1 
+
+##Here I delete the column of Babe
+##If this code in run after running the code of exercise CF and without reseting "critics", we need to put "2" instead of "1" becuase we will to delete column "Mean" (created in exerciseCF markdown)
+
+Babe_critics <- Babe_critics[,1:Babe_critics_length]
+
+solutionExercise5 <- sort(colMeans(x=as.data.frame(Babe_critics[2:length(Babe_critics)]), na.rm = TRUE), decreasing = T)[1:5]
+solutionExercise5
+
+##As in another exercise, we need to delete the column of User to be able to apply the math operation of getting the mean per column (thats why Babe_critics starts in column 2).
+##After doing the operation, we order and show only the top 5 with highest values
+
+```
+
+# 6) MovieLens
+Explore a real data set and provide non-personalized ratings. You can use the MovieLens database. You can find MovieLens' dataset here: http://files.grouplens.org/datasets/movielens/ml-10m-README.html

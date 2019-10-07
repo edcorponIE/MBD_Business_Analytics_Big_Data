@@ -1,0 +1,598 @@
+---
+title: "Trends of Youth Employment in Latin America"
+author: "Group A"
+output: html_document
+---
+
+```{r include=FALSE, warning=FALSE, echo=FALSE}
+# Load the libraries
+
+library("ggplot2")
+library("xlsx")
+library("tidyverse")
+library("ggalt")
+library("rworldmap")
+library("RColorBrewer")
+library("dplyr")
+library("httr")
+library("extrafont")
+font_import()
+library("ggthemes")
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+# Load the data
+
+my_data <- read.xlsx("C:/Users/Eduardo/Desktop/IE 2/Data Visualization/group assigment/data/Youth Employment in LATAM_1.xlsx", 1)
+
+##We delete Bahamas and Barbados as part of the data cleaning
+my_data <- my_data[-2,]
+
+my_data <- my_data[-4,]
+
+my_data <- my_data[-21,]
+
+my_data <- my_data[-23,]
+
+reset <- my_data
+#To reset the data after making changes that do not involve to other plots
+
+```
+
+```{r, echo=FALSE}
+
+# calculate the unemployment rate.
+# This will go aon the y axis
+
+# Unemployment Rate = (Unemployed / Economically active population) * 100  
+# UR = my_data$Unemployed / my_data$Economically.Active.Population ) * 100  
+numRows <- nrow(my_data)
+
+#UR[numRows,]
+my_data$ur<-NA
+
+for (row in 1:nrow(my_data)) {
+  rate  <- ((my_data$Unemployed / my_data$Economically.Active.Population ) * 100  )
+  my_data$ur = rate
+  #print(rate)
+}
+
+# my_data now contains a new column called 'ur' which contains the Unemployment Rate
+# UR = my_data$Unemployed / my_data$Economically.Active.Population ) * 100
+
+my_data_plot2 <- my_data[, -c(5:32)] # delete columns 5 through 32
+my_data_plot2 <- as.data.frame(my_data_plot2)
+my_data_plot2 <- my_data_plot2[order(my_data_plot2$NA.),]
+
+my_data_plot2$urFemale<-NA
+my_data_plot2$diff<-NA
+
+for (row in 1:nrow(my_data_plot2)) {
+  my_data_plot2[row,]$urFemale = my_data_plot2[row+1,]$ur
+}
+
+toDelete <- seq(0, nrow(my_data_plot2), 2)
+
+my_data_plot2 <-  my_data_plot2[-toDelete, ]
+
+toDelete <- seq(0, nrow(my_data_plot2), 2)
+
+my_data_plot2 <-  my_data_plot2[-toDelete, ]
+
+my_data_plot2 <- my_data_plot2[order(my_data_plot2$NA.),]
+
+for (row in 1:nrow(my_data_plot2)) {
+  my_data_plot2[row,]$diff = my_data_plot2[row,]$urFemale - my_data_plot2[row,]$ur
+}
+
+my_data_plot2$NA. <- factor(my_data_plot2$NA., levels = my_data_plot2$NA.[order(my_data_plot2$urFemale)])
+
+```
+<div style="margin-bottom:50px;">
+</div>
+#####Data Source: IDB SIMS (Labor Markets and Social Security Information System).
+#####The countries that appear in this the project are: Argentina, Bolivia, Brazil, Chile, Colombia, Costa Rica, Dominican Republic, Ecuador, Guatemala, Honduras, Jamaica, Mexico, Nicaragua, Panama, Peru, Paraguay, El Salvador, Uruguay, Venezuela
+
+#####In the first plot, we compare the difference in unemployment rates (in %) between young (from 15 to 25) <span style="color:#0026A5;font-weight:bold">men</span> and <span style="color:pink;font-weight:bold">women</span>
+<div style="margin-bottom:20px;">
+</div>
+```{r, fig.align='center', echo=FALSE}
+## Dumbbell Plot
+
+dumbbell <- ggplot() + 
+            geom_dumbbell(aes(y = my_data_plot2$NA.,
+                x = my_data_plot2$urFemale, xend = my_data_plot2$ur),
+                size=3, color="#e3e2e1", 
+                colour_x = "pink", colour_xend = "#395B74")
+
+
+
+dumbbell <- dumbbell +  
+            theme_minimal() + 
+            labs(x = "Unemployment rates (in %)",
+                 y = "Countries"
+                 ##,title =  "Youth unemployment rates between men and women"
+                 )
+
+dumbbell
+##labels (geom_point)
+
+```
+<div style="margin-bottom:30;">
+</div>
+#####As the above plot is ordered from highest to lowest, it can be seen that **Jamaica** is the country with the highest difference between young women and men in terms of unemployment (17.38%) and Peru and **Mexico** are the only two countries of LatAm with lower unemployment in young women than in young men.
+
+#####The average youth unemployment rate between men and women in all LatAm is 6.16.  
+#####In the next plot we can see the difference between young women and men's unemployment in a **heat LatAm map**:
+
+```{r include=FALSE, warning=FALSE, echo=FALSE}
+    
+## Map Plot data
+
+map <- NULL  
+map$country <- my_data_plot2$NA. 
+map$code<- my_data_plot2$Country
+map$Difference<-my_data_plot2$diff 
+map<-as.data.frame(map)  
+n <- joinCountryData2Map(map, joinCode="NAME", nameJoinColumn="country")
+
+```
+
+```{r message=FALSE, fig.align='center', warning=FALSE, echo=FALSE}
+    
+## Map Plot
+mapCountryData(n, nameColumnToPlot = "Difference", numCats = 6, catMethod = "quantiles", gyr, addLegend=TRUE, mapTitle="", mapRegion="latin america", oceanCol = "white", missingCountryCol="light grey", borderCol = "white")
+
+```
+
+```{r message=FALSE, warning=FALSE, echo=FALSE}
+    
+## Geom Plot
+
+#Mexico row 12 and Jamaica row 11
+
+my_data <- reset
+
+tot_industry <- as.numeric(my_data[11, 22])
+percent_ind <- apply(my_data[11,13:21], 2, function(x) sum(x, na.rm=TRUE)/tot_industry)
+tot_industry_1 <- as.numeric(my_data[12, 22])
+percent_ind_1 <- apply(my_data[12,13:21], 2, function(x) sum(x, na.rm=TRUE)/tot_industry_1)
+
+
+tot_profile <- as.numeric(my_data[11, 32])
+percent_job <- apply(my_data[11,23:31], 2, function(x) sum(x, na.rm=TRUE)/tot_profile)
+tot_profile_1 <- as.numeric(my_data[12, 32])
+percent_job_1 <- apply(my_data[12,23:31], 2, function(x) sum(x, na.rm=TRUE)/tot_profile_1)
+
+desc_ind <- c(
+  "Agriculture",
+  "Mines",
+  "Manufacturing",
+  "Resources",
+  "Construction",
+  "Commerce",
+  "Transportation",
+  "Finantial", 
+  "Social"
+)
+
+desc_job <- c(
+  "Technical",
+  "Director",
+  "Intermediate",
+  "Vendors",
+  "Services",
+  "Farmer",
+  "Machine drivers",
+  "Armed Forces",
+  "Other types"
+)
+
+
+country_name = my_data[11, 1]
+country_name_1 = my_data[12, 1]
+
+draw_plot <- function(values, variables, country, colorPalette){
+  data <- data.frame(
+    variable = variables, 
+    value = values)
+  
+  ##g_legends <- paste(variables, paste(round(values*100,digits=1),"%",sep=""))
+  g_legends <- paste(round(values*100,digits=1),"%",sep="")
+  plot <- ggplot(data, aes(
+    x = g_legends,
+    y = values,
+    ##fill = factor(g_legends),
+    fill = factor(variables)
+  )) +  geom_col(width = 1, color = "grey") + scale_fill_brewer(palette=colorPalette)
+  
+  plot <- plot + coord_polar()
+  
+  plot <- plot + labs(
+    title = country
+  ) 
+  plot
+}
+
+
+```
+<div style="margin-bottom:20px;">
+</div>
+#####As we have seen, Jamaica and Mexico are the two most different countries of LatAm in terms of unemployment based on gender, but...are they also difference in their type of **industries and occupations with the highest rates of employment**? Let's see:  
+
+```{r,echo=FALSE, fig.width=4.7, fig.height=4.7, fig.show='hold'}
+
+Jamaica_theme <-theme_minimal() + theme(
+  ##legend.position = "none",
+  legend.title = element_blank(),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  axis.ticks = element_blank(),
+  axis.text.y = element_blank(),
+  axis.text.x = element_text(face = "bold"),
+  plot.title = element_text(size = 24, face = "bold"),
+  plot.subtitle = element_text(size = 12)
+)
+
+theme_set(Jamaica_theme)
+
+draw_plot(percent_ind, desc_ind, country_name, "Set3")
+draw_plot(percent_ind_1, desc_ind, country_name_1, "Set3")
+
+```
+
+```{r,echo=FALSE, fig.width=4, fig.height=4, fig.show='hold'}
+
+Mexico_theme <- theme_minimal() + theme(
+  legend.position = "none",
+  legend.title = element_blank(),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank(),
+  axis.ticks = element_blank(),
+  axis.text.y = element_blank(),
+  axis.text.x = element_text(face = "bold"),
+  plot.title = element_text(size = 24, face = "bold"),
+  plot.subtitle = element_text(size = 12)
+)
+
+theme_set(Mexico_theme)
+
+draw_plot(percent_job, desc_job, country_name, "Set1")
+draw_plot(percent_ind_1, desc_ind, country_name_1, "Set1")
+
+```
+
+#####We can see that **Jamaica's industry** employment is basically focused on "**Commerce, restaurants and hospitality sector**" and then "Agriculture, hunting, forestry and fishing sector" (with almost half of employment rate of Commerce).
+#####**Jamaica's occupations** employment is more **distributed**, between "Services", "Machine drivers" and "Other types of services"
+
+#####If we see the **Mexico**'s graphs, we can see that the highest **industry** is "**Social and community services sector**", which is almost double than in Jamaica. The "Agriculture" indistry is quite similar in terms of emplyment rate.
+#####**Mexico's occupations** employment is **not distributed** at all: "**Machine drivers**" sector captures almost the same employment rate than the other 8 types of occupations 
+<div style="margin-bottom:30px;">
+</div>
+
+```{r include=FALSE, warning=FALSE, echo=FALSE}
+    
+## Small multiple data
+
+my_data <- reset
+
+# functions
+getAgeRelatedData <- function(my_data,ageRelatedData) {
+  rowIndex <- 1
+  # calculate the figures
+  #while (nrow(my_data) > 0) {
+  
+  while (rowIndex < nrow(my_data)) {
+    #temp frame for just this country's data - the 1st 4 rows
+    countryData <- my_data[rowIndex:(rowIndex + 3),]
+    
+    # order country data by age
+    countryData <- countryData[order(countryData$Age),]
+    
+    #15-24 first
+    youngUnemployed <- countryData[1,]$Unemployed + countryData[2,]$Unemployed
+    youngEAP <- countryData[1,]$Economically.Active.Population + countryData[2,]$Economically.Active.Population
+    # above are correct
+    
+    # then 25 - 64
+    oldUnemployed <- countryData[3,]$Unemployed + countryData[3,]$Unemployed
+    oldEAP <- countryData[4,]$Economically.Active.Population + countryData[4,]$Economically.Active.Population
+
+    UR.Young  <- ((youngUnemployed / youngEAP ) * 100  )
+    UR.Old <- ((oldUnemployed / oldEAP ) * 100  )
+    
+    #add the new row to the ageRelatedData
+    new_row <- c(as.character(countryData[1,1]), as.character(countryData[2,2]), UR.Young, UR.Old);
+    ageRelatedData <- rbind(ageRelatedData, new_row);
+    
+    rowIndex <- rowIndex + 4 #move to next country
+    print(rowIndex)
+  }
+  #take out rows 1 -19
+  ageRelatedData <- ageRelatedData[20:38,]
+  rownames(ageRelatedData) <- seq(length=nrow(ageRelatedData))
+  return(ageRelatedData);
+}
+
+organiseData <- function(ageRelatedData) {
+  ageRelatedData <- rbind(ageRelatedData, ageRelatedData)
+  ageRelatedData <- ageRelatedData[order(ageRelatedData$NA.),]
+  #add the two cols
+  ageRelatedData$Age<-NA
+  ageRelatedData$UR<-NA
+  #populate the cols, either 15-24 or 25-64
+  
+  rownames(ageRelatedData) <- seq(length=nrow(ageRelatedData))
+  
+  for (row in 1:nrow(ageRelatedData)) {
+    if (!row %% 2 == 0) { #odd  if((num %% 2) == 0) {
+      ageRelatedData[row,]$Age = "15-24"
+      ageRelatedData[row,]$UR = ageRelatedData[row,]$UR.Young
+    } else {              #even
+      ageRelatedData[row,]$Age = "25-65"
+      ageRelatedData[row,]$UR = ageRelatedData[row,]$UR.Old  
+    }
+  }
+  #remove the useless cols
+  ageRelatedData = subset(ageRelatedData, select = -c(UR.Young, UR.Old) )
+  print(ageRelatedData)
+  
+  return(ageRelatedData)
+}
+
+my_data <- read.xlsx("C:/Users/Eduardo/Downloads/data/Youth Employment in LATAM.xlsx", 1) 
+
+#my_data <- read.xlsx("data/Youth Employment in LATAM - onlyArgentina.xlsx", 1)
+#my_data <- read.xlsx("data/Youth Employment in LATAM - 2countries.xlsx", 1, stringsAsFactors = FALSE)
+
+# calculate the unemployment rate. This will go aon the y axis
+numRows <- nrow(my_data)
+numRows
+my_data$ur<-NA
+
+for (row in 1:nrow(my_data)) {
+  rate  <- ((my_data$Unemployed / my_data$Economically.Active.Population ) * 100  )
+  my_data$ur = rate
+}
+
+head(my_data)
+my_data[,"ur"]
+
+#Tidy up the data: rename
+colnames(my_data)[colnames(my_data)=="Country"] <- "Country.Code"
+
+# I want to remove all unnecessary rows with missing data, leaving only the ones I am interested in
+
+# order the data by country
+my_data <- my_data[order(my_data$NA.),]
+str(my_data)
+
+# I want to remove all unnecessary columns, leaving only the ones I am interested in
+keeps <- c("NA.", "Country.Code", "Demographic", "Age", "Unemployed",
+           "Economically.Active.Population", "ur")
+
+my_data <- my_data[keeps]
+
+print(my_data)
+#Add 2 new cols to store what I want to store:
+my_data$UR.Old<-NA
+my_data$UR.Young<-NA
+
+ageRelatedData <- data.frame(NA. = character(19), Country.Code=character(19),
+                             UR.Young = character(19), UR.Old = character(19), 
+                             stringsAsFactors = FALSE);
+
+ageRelatedData <- getAgeRelatedData(my_data, ageRelatedData)
+
+ageRelatedData <- organiseData(ageRelatedData)
+print(ageRelatedData)
+
+main1_color = '#478adb'
+
+ageRelatedData$UR_asNum <- NA
+
+ageRelatedData$UR_asNum <- as.numeric(ageRelatedData$UR)
+ageRelatedData$UR_asNum <- round(ageRelatedData$UR_asNum, digits=2)
+
+
+```
+
+#####Lastly, we need to compare the unemployment of youth people with aged people, to see if the unemployment is spread out all ages or is indeed a problem of youth generations, so we need to visualize the data in a more general level, without entering into their different industries or gender rates.
+#####In the next plot we **compare all LatAm countries based on unemployment rate and grouping by age group**.
+<div style="margin-bottom:20px;">
+</div>
+```{r message=FALSE, fig.align='center', warning=FALSE, echo=FALSE}
+    
+## Small Multiple Plot
+
+myplot <- ggplot(ageRelatedData, aes(x = Age, y = UR_asNum, fill = Age, label=UR_asNum)) + 
+  geom_bar(stat = "identity", colour = main1_color) +
+  geom_text(aes(label=UR_asNum),  vjust=-0.5, position = position_dodge(width = 1), 
+            color="black", size=3) +
+  ylim(0, 50) +
+  ylab("Unemployment Rate %") +
+  facet_wrap(~NA.)
+
+myplot <- myplot + ggtitle("Country Unemployment % Rate by Age Group") +
+  theme(plot.title = element_text(hjust = 0.5, size = 13), legend.position="top")
+  
+plot(myplot)
+```
+<div style="margin-bottom:20px;">
+</div>
+#####As it can be seen, **Jamaica** is the one with the highest youth unemployment rate. With the first graph of the project we can add more details into this statement because we saw that they also have a genden inequality. 
+#####We can easily see that **countries that were red-ish in the map graph**, like Brazil or Colombia, have higher rates of unemployment in comparison with others like the said Mexico.
+#####We can also confirm that **in all LatAm, youth unemployment is higher than aged unemployment**.
+<div style="margin-bottom:30px;">
+</div>
+```{r include=FALSE, warning=FALSE, echo=FALSE}
+
+#Theme
+
+fill_color = '#fed8b1'
+decoration_color = 'orange'
+#main1_color = 'blue'
+main1_color = '#395B74'#darkblue
+main2_color = '#f206d3'
+
+Dark_blue <- "#395B74"
+Light_grey <- "#e3e2e1"
+
+###
+
+theme_A_Team <- 
+function (base_size = 11, base_family = "") 
+{
+  half_line <- base_size/2
+  theme(
+    line = element_line(colour = "black", size = 0.5, 
+                        linetype = 1, lineend = "butt"), 
+    rect = element_rect(fill = "white", colour = "black",
+                        size = 0.5, linetype = 1),
+    text = element_text(family = base_family, face = "plain",
+                        colour = "black", size = base_size,
+                        lineheight = 0.9,  hjust = 0.5,
+                        vjust = 0.5, angle = 0, 
+                        margin = margin(), debug = FALSE), 
+    
+    #axis.line = element_blank(),
+    axis.line = element_line(color = "white", 
+                             size = 1, linetype = "solid"),
+    axis.text = element_text(size = rel(0.8), colour = "grey10", face="bold"),
+    axis.text.x = element_text(margin = margin(t = 0.8*half_line/2), 
+                               vjust = 1), 
+    axis.text.y = element_text(margin = margin(r = 0.8*half_line/2),
+                               hjust = 1),
+    axis.ticks = element_line(colour = "grey10"), 
+    axis.ticks.length = unit(half_line/2, "pt"), 
+    axis.title.x = element_text(margin = margin(t = 0.8 * half_line,
+                                                b = 0.8 * half_line/2)),
+    axis.title.y = element_text(angle = 90, 
+                                margin = margin(r = 0.8 * half_line,
+                                                l = 0.8 * half_line/2)),
+    
+    legend.background = element_rect(colour = NA), 
+    legend.margin = unit(0.2, "cm"), 
+    legend.key = element_rect(fill = "grey95", colour = "white"),
+    legend.key.size = unit(1.2, "lines"), 
+    legend.key.height = NULL,
+    legend.key.width = NULL, 
+    legend.text = element_text(size = rel(0.8)),
+    legend.text.align = NULL,
+    legend.title = element_text(hjust = 0), 
+    legend.title.align = NULL, 
+    legend.position = "right", 
+    legend.direction = NULL,
+    legend.justification = "center", 
+    legend.box = NULL, 
+    
+    #panel.background = element_rect(fill = "grey92", colour = NA),
+    panel.background = element_rect(fill = "white", colour = NA),
+    panel.border = element_blank(), 
+    panel.grid.major = element_line(colour = "grey"), 
+    panel.grid.minor = element_line(colour = "grey", size = 0.25), 
+    panel.margin = unit(half_line, "pt"), panel.margin.x = NULL, 
+    panel.margin.y = NULL, panel.ontop = FALSE, 
+    
+    strip.background = element_rect(fill = "grey", colour = NA),
+    strip.text = element_text(colour = "grey", size = rel(0.8)),
+    strip.text.x = element_text(margin = margin(t = half_line,
+                                                b = half_line)), 
+    strip.text.y = element_text(angle = -90, 
+                                margin = margin(l = half_line, 
+                                                r = half_line)),
+    strip.switch.pad.grid = unit(0.1, "cm"),
+    strip.switch.pad.wrap = unit(0.1, "cm"), 
+    
+    plot.background = element_rect(colour = "white"), 
+    plot.title = element_text(size = rel(1.2), 
+                              margin = margin(b = half_line * 1.2)),
+    plot.margin = margin(half_line, half_line, half_line, half_line),
+    complete = TRUE)
+}
+###
+
+```
+
+```{r include=FALSE, warning=FALSE, echo=FALSE}
+
+##Tufte plot 
+
+my_data_boxplot <- reset
+
+my_data_boxplot <- my_data_boxplot[0:38,]
+
+my_data_boxplot$Type <- "Nininis"
+
+my_data_boxplot$Rate <- NA
+
+for (row in 1:nrow(my_data_boxplot)) {
+  my_data_boxplot[row,]$Rate = ((my_data_boxplot[row,]$Nininis*100)/my_data_boxplot[row,]$Total.population)
+}
+
+my_data_boxplot1 <- my_data_boxplot[,33:34]
+
+my_data_boxplot <- reset
+
+my_data_boxplot <- my_data_boxplot[0:38,]
+my_data_boxplot$Type <- "Unemp. & not study"
+my_data_boxplot$Rate <- NA
+
+for (row in 1:nrow(my_data_boxplot)) {
+  my_data_boxplot[row,]$Rate = ((my_data_boxplot[row,]$Unemployed.who.do.not.study*100)/my_data_boxplot[row,]$Total.population)
+}
+
+my_data_boxplot2 <- my_data_boxplot[,33:34]
+
+my_data_boxplot <- reset
+
+my_data_boxplot <- my_data_boxplot[0:38,]
+my_data_boxplot$Type <- "Unemployed"
+my_data_boxplot$Rate <- NA
+
+for (row in 1:nrow(my_data_boxplot)) {
+  my_data_boxplot[row,]$Rate = ((my_data_boxplot[row,]$Unemployed*100)/my_data_boxplot[row,]$Total.population)
+}
+
+my_data_boxplot3 <- my_data_boxplot[,33:34]
+
+my_data_boxplot <- reset
+
+my_data_boxplot <- my_data_boxplot[0:38,]
+my_data_boxplot$Type <- "Employed"
+my_data_boxplot$Rate <- NA
+
+for (row in 1:nrow(my_data_boxplot)) {
+  my_data_boxplot[row,]$Rate = ((my_data_boxplot[row,]$Employed*100)/my_data_boxplot[row,]$Total.population)
+}
+
+my_data_boxplot4 <- my_data_boxplot[,33:34]
+
+my_data_boxplot <- rbind(my_data_boxplot1,my_data_boxplot2,my_data_boxplot3,my_data_boxplot4)
+
+```
+#####The next plot that appears is a **Tufte** style **plot** which shows information about the Rates of Employment and Unemployment in LatAm countries. **Rates for Employed / Nininis / Unemployed and Unemployed Who do Not Study**, can each be seen on the Chart.  
+
+#####**Nininis**: "Youths who are "neither in education, nor working, nor looking for work"; the Spanish acronym for this group is "NININI" while the closest English acronym ("NLFET" or "neither in the labor force nor in education or training") includes youths in training, who are not possible to capture in LAC countries. "
+
+#####The rates are calculated as a percentage **of the Total population** for each country in LatAm.
+<div style="margin-bottom:20px;">
+</div>
+```{r, warning=FALSE, echo=FALSE, fig.width=5.1, fig.height=5.1, fig.show='hold', fig.align='center'}
+
+#Now we set the new defined theme 
+theme_set(theme_A_Team())
+
+#Tufte Boxplot
+ggplot(my_data_boxplot, aes(factor(Type), Rate)) + 
+  geom_tufteboxplot(outlier.colour="transparent", color= main1_color, lwd=3) + 
+  annotate("text", x = 1, y = 70, adj=1,  family="serif", label = c("") ) + 
+  labs(title = 'LatAm employment status') + 
+  scale_y_continuous(name ="% Total Population" ) +
+  scale_x_discrete(name ="Employment Status" )
+
+```
+<div style="margin-bottom:20px;">
+</div>
+#####As can be seen in the chart, there are higher levels of Employed people in LatAm then there are in the other categories of Employment.  
+#####Unemployed people who do not study make up the lowest number of people overall in LatAm.

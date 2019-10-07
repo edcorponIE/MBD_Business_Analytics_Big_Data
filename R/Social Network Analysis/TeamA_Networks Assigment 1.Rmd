@@ -1,0 +1,372 @@
+---
+title: <span style="color:darkblue", > Assignment 1  </span>
+author: Benjamín Chumaceiro | Rosalía Contreras | Eduardo Cort Pons | Maria Joyce | Ignacio Mouawad | Srishti Singh 
+        
+date: "10/1/2019"
+output:
+  html_document:
+    df_print: paged
+
+---
+## <span style="color:darkblue">SOCIAL NETWORKS ANALYSIS</span>
+####Profesor: ALVARO ROMERO MIRALLES
+####Program: MBD April intake
+#### Group Assignment 1
+#### Team A
+
+On this first assignment, applying the basic functions of the Igraph package is required. The following datasets are going to be used:
+
+* Actors dataset - undirected graph - : For the 2005 Graph Drawing conference a data set was provided of the IMDB movie database. We will use a reduced version of this dataset, which derived all actor-actor collaboration edges where the actors co-starred in at least 2 movies together between 1995 and 2004. 
+
+* Wikipedia Dataset - directed graph - . The vertices of this network are wikipedia pages. The label of each vertex is the title of the wikipedia page. Edges represent hyperlinks between wikipedia pages; that is, if there is an edge from page A to page B, it means that page A has an hyperlink to page B. The dataset is available at: https://www.cs.upc.edu/~CSN/lab/wikipedia.gml
+
+
+You have to complete the code chunks in this document but also analyze the results, extract insights and describe them in an understandable way.
+
+<span style="color:blue">Please, write all your conclusions in blue</span>.
+
+
+# Loading data
+
+In this section, the goal is loading the datasets given, building the graph and analyzing basics metrics. Include the edge or node attributes you consider.
+
+
+
+
+```{r}
+library(igraph)
+library(data.table)
+library(stringr)
+# Building the graph
+
+#actors edges graph
+actors<-fread("imdb_actor_edges.tsv")
+
+
+#actors key graphs
+actorskey<-fread("imdb_actors_key.tsv")
+
+#joining actors into 1
+actedge<-as.data.frame(actors, directed = F)
+actkey<-as.data.frame(actorskey, directed = F)
+actors_graph<- graph.data.frame(d=actedge, vertices = actkey, directed = F)
+
+#wikipedia graph
+wikipedia <- fread("C:/Users/ignac/Desktop/ie/mbd term 2/social network analysis/assignment/wikipedia.gml", fill = TRUE)
+
+wikigraph<- read_graph( "https://www.cs.upc.edu/~CSN/lab/wikipedia.gml",format = c("gml"))
+
+```
+
+Describe the values provided by summary function on the graph object.
+```{r}
+print("actors summary:")
+summary(actors_graph)
+
+print("wikipedia summary:")
+summary(wikigraph)
+
+```
+
+<span style="color:blue">After loading  both datasets and creating the graphs, and using the summary function, we got an UNW- description for Actors. Therefore we can deduce that this graph is (U) Undirected, (N) Named and (W) Weighted. There are 17577 nodes in the network along with 287074 edges. As for the second line,and after merging the 2 actor datasets, the summary function shows the attributes and seperates them by a comma. We have name, main genre, and genres with (v/c) implying  vertex attributes with a character types, movies_95_04 as a (v/n) a vertex attribute with numeric type, and weight with (e/n) implying its an edge  attribute with a numeric type. </span>
+
+<span style="color:blue">As for the Wikipedia page, we got an D--- igraph suggesting that it is (D) Directed. It has 27475  nodes with 85729 edges. It has a wikiid and id (v/n) vertex level attributes with numeric type, and a label (v/c) vertex level attribute of a character attribute. </span>
+
+# Degree distribution
+
+
+Represent the degree distribution of both networks. For directed graphs, compute the total degree distribution considered the graph as undirected, the in-degree distribution and the out-degree distribution.
+*How do these distributions look like? Are they similar? What about their means? And their standard deviations with respect to the mean?*
+
+### Wikipedia Graph as Undirected total degree distribution
+```{r}
+deg <- degree(as.undirected(wikigraph), mode="total")
+hist(deg, main="Histogram of Total node degree",xlim=c(0,50), ylim=c(0,8000),breaks = 10000)
+
+
+deg.dist <- degree_distribution(as.undirected(wikigraph, mode = "collapse"), cumulative=T, mode="total")
+plot( x=0:max(deg), y=1-deg.dist, pch=19, cex=1.2, col="orange", 
+
+      xlab="Degree", ylab="Cumulative Frequency for total degree", xlim = c(0,30))
+
+
+print("Mean total: ")
+mean(deg)
+print("Standard Deviation:")
+sd(deg)
+```
+
+
+<span style="color:blue">  In the  "histogram of node degree" the frequency shows that the most common nodes have degrees around 1 ot 10. When taking the zoom out and looking at outliers, the graph is most highly right-skewed and exhibiting a long tail distribution, meaning that the large majority of nodes have low degrees but a small number of nodes, known as "hubs", have high degrees. These outliers are the reason why the mean is 5.397489 and and not a number from 1 to 3 where the big concentration of degrees appear graphically.</span> 
+
+<span style="color:blue">  After examining the cumulative degree distribution, that shows us the total running of frequencies accumulated, we can observe that after 15 degrees the curve stops increasing and becomes constant, therefore the majority of nodes have from 1 to 10 degrees.</span>
+
+<span style="color:blue">  The standard deviation is 13.06602 which is a number more than two times the mean, thus the mean is not an exact representation of all the nodes because of the noise.</span>
+
+
+### Directed Wikipedia Graph in-degree distribution
+```{r}
+deg <- degree(wikigraph, mode="in" )
+hist(deg, main="Histogram of in node degree", xlim=c(0,50), ylim=c(0,8000),breaks = 10000)
+
+
+deg.dist <- degree_distribution(wikigraph, cumulative=T, mode="in")
+plot( x=0:max(deg), y=1-deg.dist, pch=19, cex=1.2, col="orange", 
+
+      xlab="Degree", ylab="Cumulative Frequency for in degree", xlim = c(0,30))
+
+
+print("Mean in degree: ")
+mean(deg)
+print("Standard Deviation in degree:")
+sd(deg)
+
+```
+
+
+<span style="color:blue">  In the  "histogram of node degree" the frequency shows that the most common nodes have degrees around 1 to 10. When taking the zoom out and we look at outliers, the graph is most highly right-skewed and exhibiting a long tail distribution, meaning that a large majority of nodes have low degree but a small number, known as "hubs", have high degree. These outliers are the reason why the mean is 3.120255 and and not a number from 1 to 5 where the big concentration of degrees appear graphically.</span>
+
+ <span style="color:blue">  After examining the cumulative degree distribution, that shows us the total running of frequencies accumulated, we can observe that after 15 degrees the curve stops increasing and becomes constant, therefore the majority of nodes have from 1 to 10 degrees.</span>
+
+ <span style="color:blue">  The standard deviation is  9.000066 which is a number more than three times the mean, thus the mean is not an exact representation of all the nodes because of the noise.</span>
+
+
+### Directed Wikipedia Graph out-degree distribution
+```{r}
+deg <- degree(wikigraph, mode="out")
+hist(deg, main="Histogram of out node degree", xlim=c(0,50), ylim=c(0,8000),breaks = 10000)
+
+
+deg.dist <- degree_distribution(wikigraph, cumulative=T, mode="out")
+plot( x=0:max(deg), y=1-deg.dist, pch=19, cex=1.2, col="orange", 
+
+      xlab="Degree", ylab="Cumulative Frequency for total degree", xlim = c(0,30))
+
+
+print("Mean out degree: ")
+mean(deg)
+print("Standard Deviation out degree:")
+sd(deg)
+
+```
+<span style="color:blue">  In the  "histogram of node degree" the frequency shows that the most common nodes have degrees around 1 to 10. When taking the zoom out and we look at outliers, the graph is skewed to the right, exhibiting a long tail distribution, meaning that a large majority of nodes have low degree but a small number, known as "hubs", have high degree. These outliers are the reason why the mean is 3.120255 and and not a number from 1 to 5 where the big concentration of degrees appear graphically.</span>
+
+<span style="color:blue">  After examining the cumulative degree distribution, that shows us the total running of frequencies accumulated, we can observe that after 15 degrees the curve stops increasing and becomes constant, therefore the majority of nodes have from 1 to 10 degrees.</span>
+
+<span style="color:blue">  The standard deviation is  9.038384 which is a number more than three times the mean, thus the mean is not an exact representation of all the nodes because of the noise.</span>
+
+
+### Directed Actor Graph total degree distribution
+
+```{r}
+deg <- degree(actors_graph, mode="total")
+hist(deg, main="Histogram of total node degree", xlim=c(0,100), ylim=c(0,1000),breaks = 10000)
+
+
+deg.dist <- degree_distribution(actors_graph, cumulative=T, mode="total")
+plot( x=0:max(deg), y=1-deg.dist, pch=19, cex=1.2, col="orange", 
+
+      xlab="Degree", ylab="Cumulative Frequency for total degree", xlim = c(0,100))
+
+
+print("Mean total: ")
+mean(deg)
+print("Standard Deviation:")
+sd(deg)
+
+```
+
+<span style="color:blue">  As for the actors undirected graph, the  "histogram of node degree" shows that most nodes have degrees around 1 ot 60. When taking the zoom out and we look at outliers, the graph is most highly right-skewed, meaning that a large majority of nodes have low degree but a small number, known as "hubs", have high degree. These outliers are the reason why the mean is 32.66473 and not a number arround 1 to 20 where the big concentration of degrees appear graphically.</span> 
+
+<span style="color:blue">  After examining the cumulative degree distribution, that shows us the total running of frequencies accumulated, we can observe that after 80 degrees the curve stops increasing and becomes constant, therefore the mayority of nodes have from 1 to 10 degrees.</span>
+
+<span style="color:blue">  The standard deviation is  9.000066 which is a number more than three times the mean, thus the mean is not an exact representation of all the nodes because of the noise.</span>
+
+
+#### Conclusion
+
+<span style="color:blue">  The mean of the actor’s social network (32.66473) is larger than that of the the Wikipedia network (5.397489). This implies that on average each node in the actors network has more connections to other nodes. This makes sense since Wikipedia pages are more unlikely to be connected than actors in a movie.</span>
+
+<span style="color:blue">  The standard deviation is larger in the actors network (47.63042) than in the Wikipedia network (13.06602). Therefore, the actors network is affected by actors that have a lot of connections (edges) or a high degree. This phenomenon is also the reason why the mean of the actors network is larger than its median.</span>
+
+# Network Diameter and Average Path Length
+Compare the network diameter and the average path length of both networks. Consider the actors graph as unweighted.
+*Does the Wikipedia graph have a larger diameter than the actors graph? Why? What about the average path length? *
+
+#### Network Diameter
+```{r}
+print("wikipedia diameter")
+diameter(wikigraph, directed=T)
+
+print("actors graph diameter")
+diameter(actors_graph, directed=F, weights=NA)
+```
+<span style="color:blue">  We can define the diameter of a network as the longest of all the calculated shortest paths in a network. In this case Wikipedia has the largest path between the farthest nodes, hence a larger diameter.
+
+<span style="color:blue">  We can informally suggest that the Wikipedia network has a larger diameter because the pages about topics are more connected to other links since knowledge in a encyclopedia can connect from one topic to an other and so on. Instead, the actors network diameter is usually small since actors usually participate in movies of a certain genre and they usually don’t change genre, thus creating sub-networks</span>
+
+#### Average Path Length
+```{r}
+print("wikipedia average path length")
+mean_distance(wikigraph, directed=T)
+
+print("actors graph average length")
+mean_distance(actors_graph, directed=F)
+```
+<span style="color:blue">  The distance between two nodes is defined as the number of edges along the shortest path connecting them. So the average distance is bigger for the wikipedia network meaning that nodes are on average more distant from each other.</span>
+
+Compare the global clustering coefficient and the average local clustering coefficient of both networks. Consider all graphs as undirected and unweighted.
+*Does Wikipedia network have a larger clustering coefficient than the actors graph? Why?*
+```{r}
+print("wikipedia global clustering coefficient")
+transitivity(as.undirected(wikigraph),type="global", weights = NA)
+
+print("actors graph global clustering coefficient")
+transitivity(actors_graph,type="global", weights = NA)
+```
+
+```{r}
+print("wikipedia average local clustering coefficient")
+mean(transitivity(as.undirected(wikigraph),type="local", weights = NA), na.rm = T)
+range(transitivity(as.undirected(wikigraph),type="local", weights = NA), na.rm = T)
+print("actors graph average local clustering coefficient")
+mean(transitivity(actors_graph,type="local", weights = NA), na.rm = T)
+range(transitivity(actors_graph,type="local", weights = NA), na.rm = T)
+```
+<span style="color:blue">  The local clustering coefficient, 𝑐𝑙(𝑣), gives for node 𝑣 the proportion of neighbors of 𝑣 that are also connected to each other. The actors social network has a larger average local clustering coefficient because neighbors are more connected to echother that the wikipedia network. In the global clustering coefficient the tendency is the same, meaning that separete sub networks are not affecting the tendency eventhough the difference is not as big as in the local average clustering coefficient  </span>
+
+# Node importance: Centrality measures
+
+## Actors' Network
+Obtain the distribution of the number of movies made by an actor and the number of genres in which an actor starred in. It may be useful to analyze and discuss the results to be obtained in the following exercises.
+
+#### Most actors starring in different genres
+```{r}
+actorskey$ngenres <- str_count(as.matrix(actorskey[,5]), ",")+1;
+hist(actorskey$movies_95_04, main = " number of movies distribution", xlim = c(0,100), breaks = 100, xlab = "number of movies (bigger outliers removed)");
+
+hist(actorskey$ngenres, main = "number of genres distribution", xlab = "number of different genres")
+
+xy <- actorskey[order(actorskey$ngenres, decreasing = TRUE),][1:20,]
+
+xy[,c("name","ngenres","movies_95_04")]
+
+```
+
+Obtain three vectors with the degree, betweeness and closeness for each vertex of the actors' graph.
+
+```{r}
+class(deg) <- degree(actors_graph, mode="total")
+btw <-betweenness(actors_graph)
+cls <-closeness(actors_graph)
+```
+
+```{r}
+centrality_table <- cbind(deg, btw, cls) #,ed_btw)
+centrality_table <- as.data.frame(centrality_table)
+centrality_table <- setDT(centrality_table, keep.rownames = TRUE)[]
+centrality_table <- as.data.table(centrality_table)
+centrality_table$ngenres <- actorskey$ngenres
+centrality_table$n_movies <- actorskey$movies_95_04
+centrality_table$main_genre <- actorskey$main_genre
+```
+
+Obtain the list of the 20 actors with the largest degree centrality . Show a list with the degree, betweenness, and closeness centralities, the name of the actor, the number of movies, the main genre, and the number of genres in which the actor has participated.
+*How do you explain the high degree of the top-20 list? *
+#### Top 20 actors with highest degree
+```{r}
+centrality_table[order(centrality_table$deg, decreasing = T),][1:20]
+```
+
+<span style="color:blue">  Central nodes with high degree are those that have most links with other nodes. It makes sense that Adult industry Actors dominate the top 20, because it is usual for that genre's actors to have multiple interactions within their network. According to IMBD Alex Sanders has directed more than 100 movies and has been involve as an actor in many more. This could be the reason why he is connected and has many edges.</span>
+
+
+Obtain the list of the 20 actors with the largest betweenness centrality . Show a list with the degree, betweenness, and closeness centralities, the name of the actor, the number of movies, the main genre, and the number of genres in which the actor has participated.
+*Is this list similar to the one obtained for degree centrality? Why? How do you explain the high betweenness of the top-20 list?*
+
+```{r}
+centrality_table[order(centrality_table$btw, decreasing = T),][1:20]
+```
+
+<span style="color:blue">  Central actors in betweeness are those that have “control” of other pairs of actors. When we analyze the list we find that many of the actors are not from USA, meaning they are foreign such as Zinedine Soualem, Darren Shahlavi, Penelope cruz. This appears to be a reason why they are bridges between networks, because they connect networks from country to country. For example, Darren Shahlavi the Iranian actor who specializes in martial arts is a good example of a bridge because he specializes in a very particular genre. As for the actor heading the list, he resembles the connection to the previous Degree table, as he has acted in many genres resulting as a bridge between actors who do not normally work together. </span>
+
+
+
+
+Obtain the list of the 20 actors with the largest closeness centrality . Show a list with the degree, betweenness, and closeness centralities, the name of the actor, the number of movies, the main genre, and the number of genres in which the actor has participated.
+*Is this list similar to the one obtained for degree and betweenness centralities? Why? How do you explain the high closeness of the top-20 list? *
+
+
+```{r}
+centrality_table[order(centrality_table$cls, decreasing = T),][1:20]
+
+```
+
+<span style="color:blue">  An actor 𝐼 is central in closeness if it can easily interact with all other actors, that is the distance 𝑑(𝑖, 𝑗) to all other actors 𝑗 is short. When we observe the results of all this actors we see a lot of worldwide popular  well-known candidates such as Cameron Diaz, Tom Hanks, Samuel L Jackson, Robert De Niro, and many more. This makes sense because these actors appear to be connected to many other actors,  even if they don’t have the highest degrees. Their distance to other actors is shorter due to the movies they make that connects them with the right actors that have shorter path to others creating a shorter chain. We can use Whoopie Goldberg as an example of an actress who starred in many movies alongside different actors in w wide array of genres, therefore being among the top actresses. </span>
+## Wikipedia
+
+Obtain the list of the 20 Wikipedia pages with the largest out-degree centrality . Show a list with the outdegree, betweenness, and closeness centralities, and degree prestige, the Wikipedia identifier, and the title of the page (label).
+
+
+```{r}
+deg <- degree(wikigraph, mode="out")
+btw <- betweenness(wikigraph, directed=T, weights=NA)
+cls <- closeness(wikigraph, mode="total", weights=NA)
+cls_out <-closeness(wikigraph, mode="out", weights=NA)
+deg_pres <-page.rank(wikigraph, directed=T, weights=NA)
+```
+
+```{r}
+
+wiki_centrality_table <- cbind(deg, btw, cls, cls_out)
+wiki_centrality_table <- as.data.frame(wiki_centrality_table)
+wiki_centrality_table<- setDT(wiki_centrality_table, keep.rownames = TRUE)[]
+wiki_centrality_table<- as.data.table(wiki_centrality_table)
+wiki_centrality_table$id <- get.vertex.attribute(wikigraph,name =  "id")
+wiki_centrality_table$label <- get.vertex.attribute(wikigraph,name =  "label")
+```
+
+#### top 20 highest degree
+```{r}
+wiki_centrality_table[order(wiki_centrality_table$deg, decreasing = T),][1:20] 
+```
+*How do you explain the high degree of the top-20 list? *
+<span style="color:blue"> Central nodes with high degrees are those that have most links with other nodes. A very curios trend observed is that almost all links within the top 20 highest degrees are mathematics articles, or subjects related to maths. This is observed due to the amount of hyperlinks referring to mathematical concepts in wikipedia pages throughout the network, along with many citations.</span>
+
+Obtain the list of the 20 Wikipedia pages with the largest betweenness centrality . Show a list with the outdegree, betweenness, and closeness centralities, and degree prestige, the Wikipedia identifier, and the title of the page (label).
+
+
+#### top 20 betweenness
+```{r}
+wiki_centrality_table[order(wiki_centrality_table$btw, decreasing = T),][1:20] 
+```
+
+*How do you explain the high betweenness of the top-20 list?*
+<span style="color:blue">  Highest nodes in betweeness are those that act as bridges to other Wikipedia nodes.  A pattern observed with all Wikipedia articles found within this 20 top list are from different subjects, which means that they are likely to be links that connect one subject with an other. For example, links 12533 of calculus could be the bridge to a link to the history network.</span>
+ 
+Obtain the list of the 20 Wikipedia pages with the largest closeness centrality . Show a list with the outdegree, betweenness, and closeness centralities, and degree prestige, the Wikipedia identifier, and the title of the page (label).
+
+#### top 20 closeness
+```{r}
+wiki_centrality_table[order(wiki_centrality_table$cls, decreasing = T),][1:20] 
+```
+*How do you explain the high closeness of the top-20 list?*
+<span style="color:blue">An actor 𝐼 is central in closeness if it can easily interact with all other actors, that is the distance 𝑑(𝑖, 𝑗) to all other actors, where 𝑗 is short. A pattern observed is that some of the links with high betweenness and high degree centrality also happen to have closeness centrality. For example, id 12533 is both, central in closeness and betweenness, and id 8436 is also central in high degree and in closeness. This could suggest that the networks are extremely separated from each other, so the nearest path to connect nodes are through betweenness centrality or largest degree centrality.</span>
+
+
+ 
+
+
+# Network Models (Optional)
+Explore the Erdos-Renyi model and compare its structural properties to those of real-world networks (Wikipedia and actors):
+
+* Degree distribution  P(k)
+* Network Diameter and Average Path Length
+* (Global and Local) Clustering Coefficient
+
+
+# Comunity detection (Optional)
+Use any community detection algorithm in the Wikipedia network and/or in the actors' network and discuss whether the communities found make sense according to the vertex labels.
+
+# Final project proposal
+Write a short proposal for your final project.

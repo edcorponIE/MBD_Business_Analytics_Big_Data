@@ -1,0 +1,220 @@
+## Connect to hive:
+
+hive;
+
+## Q1 Create database:
+
+create database crypto_team_b;
+
+## Q2 use database:
+
+use crypto_team_b;
+
+
+## Q3 create external table sentiment_dictionary:
+
+create external table sentiment_dictionary
+(type string,
+length int,
+word string,
+word_type string,
+stemmed string, 
+polarity string)
+row format delimited
+ fields terminated by '\t'
+ collection items terminated by ','
+stored as textfile
+location '/user/flume/sentiment-dictionary';
+
+
+## Q4 create external table tweets_json:
+
+create external table tweets_json
+(id bigint,
+coordinates struct <coordinates:array<float>>,
+created_at string,
+`place`
+struct<name:string,full_name:string,country_code:string,country:string>,
+`entities` struct<hashtags:array<struct<text:string>>,
+symbols:array<struct<text:string>>>,
+`user`
+struct<id:bigint,name:string,followers_count:int,time_zone:string,geo_enabled:boolean>,
+text string,
+lang string)
+row format serde 'org.apache.hive.hcatalog.data.JsonSerDe'
+stored as textfile
+location '/user/flume/crypto-tweets';
+
+
+## Q5 total number of tweets in tweets_json:
+
+select count(id) from tweets_json;
+## result is 25446 tweets. Time taken 27.189 seconds.
+
+## Q6 create managed table tweets parquet:
+
+
+create table tweets_parquet like tweets_json
+stored as parquet ;
+
+## Q7 insert rwos from tweets_json
+
+insert into table tweets_parquet
+select * from tweets_json;
+
+
+## Q8 total number of tweets in tweets_parquet:
+
+select count(id) from tweets_parquet;
+
+## result is 25446 tweets. Time taken 17.09 seconds.
+
+## Q9 verify that both have the same number of tweets:
+
+## yes, both tables contain the same number of tweets but parquet was faster
+
+
+## Q10 total number of tweets with geolocation:
+
+select count(`user`.id)
+from tweets_parquet 
+where `user`.geo_enabled = TRUE;
+
+
+## Q11 total number of tweets per language:
+
+select lang, count(*)
+from tweets_parquet
+group by lang;
+
+## Q12 top 10 users with most followers:
+
+select `user`.id, sum(`user`.followers_count) as total_count
+from tweets_parquet
+group by `user`.id
+order by total_count DESC
+limit 10;
+
+
+## Q13 join geonames with tweets parquet
+
+create external table geonames
+(id bigint,
+name string,
+ascii_name string,
+alternate_names array<string>,
+latitude float,
+longitude float,
+feature_class string,
+feature_code string,
+country_code string,
+country_code2 array<string>,
+admin1_code string,
+admin2_code string,
+admin3_code string,
+admin4_code string,
+population bigint,
+elevation int,
+dem int,
+timezone string,
+modification_date date)
+row format delimited
+fields terminated by '\t'
+collection items terminated by ','
+stored as textfile
+location '/user/anup.satyal/hive/geonames';
+
+select distinct lower(t.place.name), g.latitude, g.longitude, g.timezone 
+from geonames g INNER JOIN tweets_parquet t
+ON t.place.country_code=g.country_code and lower(t.place.name)=lower(g.name);
+
+
+## Q14 total count, average, std etc of cashtags:
+
+select lower(cashtags), sum(size(entities.symbols)) as sum, max(size(entities.symbols)) as max, 
+min(size(entities.symbols)) as min, avg(size(entities.symbols)) as avg,
+stddev(size(entities.symbols)) as stndv, percentile(size(entities.symbols),0.25) as fst_percentile ,
+percentile(size(entities.symbols),0.50) as fifty_percentile , percentile(size(entities.symbols),0.75) as seventy_five_percentile
+from tweets_parquet
+LATERAL VIEW explode(entities.symbols.text) explodeVal AS cashtags
+group by lower(cashtags);
+
+
+## Q15 top 10 most popular cashtags
+
+
+select lower(cashtags), count(*) as total 
+from tweets_parquet 
+LATERAL VIEW explode(entities.symbols.text) explodeVal AS cashtags
+group by lower(cashtags)
+order by total desc
+limit 10;
+
+
+## Q16 create tweets_words: make sure we do regegx here.. .
+
+create external table tweet_words
+(id bigint, word string) 
+stored as parquet;
+
+insert into table tweet_words
+select id, words
+from tweets_parquet
+lateral view outer explode(split(lower(text), " ")) tweet as words
+order by id;
+
+
+## Q17 create tweet_words_sentiment
+
+create external table tweet_words_sentiment
+(id bigint, word string, polarity int) 
+stored as parquet;
+
+insert into table tweet_words_sentiment
+select a.id, a.word, 
+case when b.polarity = "positive" then 1
+when b.polarity = "negative" then -1
+else coalesce(b.polarity,0)end
+from tweet_words a
+left join sentiment_dictionary b
+on a.word = b.word;
+
+## Q18 create tweet_sentiment
+
+create external table tweet_sentiment
+(id bigint, polarity string) 
+stored as parquet;
+
+insert into table tweet_sentiment
+select id, case when sum(polarity) < 0 then 'negative'
+when sum(polarity) > 0 then 'positive'
+when sum(polarity) = 0 then 'neutral' 
+else 0 end
+from tweet_words_sentiment
+group by id;
+
+
+## Q19 create tweet_sentiment
+
+create external table hour_evolution
+(hour bigint, positive int, negative int) 
+stored as parquet;
+
+insert into table hour_evolution
+select hour, (case when b.polarity = 'negative' then count(b.polarity) else 0 end) as positive,
+(case when b.polarity = 'positive' then count(b.polarity) else 0 end) as negative
+from (select id, concat(year(from_unixtime(unix_timestamp(created_at, 'EEE MMM dd HH:mm:ss ZZZZZ yyyy'))), 
+month(from_unixtime(unix_timestamp(created_at, 'EEE MMM dd HH:mm:ss ZZZZZ yyyy'))), day(from_unixtime(unix_timestamp(created_at, 'EEE MMM dd HH:mm:ss ZZZZZ yyyy'))),
+hour(from_unixtime(unix_timestamp(created_at, 'EEE MMM dd HH:mm:ss ZZZZZ yyyy')))) as hour
+from tweets_parquet
+LATERAL VIEW explode(entities.symbols.text) explodeVal AS hashtag
+where hashtag = 'ETH' OR lower(hashtag) = 'ethereum'
+) as a
+inner join 
+tweet_sentiment b
+on a.id = b.id
+group by hour, b.polarity;
+
+select hour, sum(positive), sum(negative)
+from hour_evolution
+group by hour;

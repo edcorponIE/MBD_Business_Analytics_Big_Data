@@ -1,0 +1,5 @@
+-Todas las columnas tienen que ser numéricas
+
+-Utilizando el script que tengo: el dataset tiene que llamarse Risk, el id "id" y la columna que quiero predecir "risk"
+
+-El logistic es para valores como 0-1, yes-no (dar o no una tarjeta de credito) y el linear es para saber valores

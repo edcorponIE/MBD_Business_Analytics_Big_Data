@@ -1,0 +1,194 @@
+---
+title: "AMS 2013-2014 Solar Energy Prediction"
+author: "Group B: Juliana Villaveces, Anup Satyal, Eduardo Cort, Ignacio Mouawad, Meng Chen Hung, Esther Chaelin Lee, Varun Raja"
+date: "7/11/2019"
+output:
+  html_document:
+    fig_caption: yes
+    toc: yes
+    toc_float: yes
+  params:
+  selected_column: wt
+  selected_row: 8
+editor_options:
+  chunk_output_type: console
+  theme: flatly
+---
+
+```{r, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, message = FALSE, warning = FALSE);
+library(tidyverse)
+library(data.table)
+library(kableExtra)
+## Chnage filepath
+filepath_solar <- "C:/Users/anups/Desktop/solar_dataset.RData"
+stations_file_path <- "C:/Users/anups/Desktop/station_info.csv"
+#######
+dataset<-readRDS(filepath_solar)
+anex<-read.csv(stations_file_path,sep = ",")
+stations<-dataset[1:5113,1:99]
+
+```
+
+
+
+## Exploratory Data Analysis
+
+
+
+This is a report on the findings of our initial Exploratory Data Analysis performed on the dataset of stations. 
+
+The dataset contained the daily solar production values of 98 different stations from 1994-01-01 to 2007-12-31.
+
+
+```{r summary statistics per station, echo=FALSE, include=FALSE}
+
+
+stations_summary <- na.omit(stations[,-c("Date")][,list(stations = colnames(stations[,2:99]), 
+                                    mean = sapply(.SD, mean), 
+                                    median = sapply(.SD, median),
+                                    min = sapply(.SD, min),
+                                    max = sapply(.SD, max),
+                                    std = sapply(.SD,sd))])
+
+
+```
+
+## Summary Statistics for Dataset
+
+We first looked at the distribution of data across all the stations across all the stations for the 13 years. 
+The table below shows our findings:
+
+
+```{r summary statistics, echo=FALSE}
+stat_sum <- stations_summary[, list(stations = "ALL", mean = mean(mean), median = median(median), min = min(min), max = max(max), std = sd(std))]
+
+kable(stat_sum, format = 'markdown')
+
+```
+
+We then looked at which station had the highest production over this period:
+
+```{r summary statistics highest mean, echo=FALSE}
+stat_mean <- stations_summary%>%
+  filter(mean == max(mean))
+
+kable(stat_mean, format = 'markdown')
+
+```
+
+We then looked at which station had the median over this period:
+
+```{r summary statistics median, echo=FALSE}
+stat_median <- stations_summary%>%
+  filter(median == max(median))
+
+kable(stat_median, format = 'markdown')
+
+```
+
+We then looked at the stations that had the lowest production over this period:
+
+```{r summary statistics min, echo=FALSE}
+
+stat_min <- stations_summary%>%
+  filter(min == min(min))
+
+kable(stat_min, format = 'markdown')
+
+```
+
+We then looked at the station that had the highest production over the period:
+
+```{r summary statistics max, echo=FALSE}
+
+stat_max <- stations_summary%>%
+  filter(max == max(max))
+
+kable(stat_max, format = 'markdown')
+
+```
+
+We then looked at the station that had the greatest standard deviation over the period:
+
+```{r summary statistics std, echo=FALSE}
+
+stat_std <- stations_summary%>%
+  filter(std == max(std))
+
+kable(stat_std, format = 'markdown')
+
+```
+
+
+
+## Central Tendency Analysis
+
+Since there are 98 different stations, it might better to observe relationships of key statistics graphically. Below, you can find the average production by station over this time period. This gives us an idea of how the distribution of the solar production for each station looks over the period of time we are analysing.
+
+```{r all station avg prod, echo=FALSE}
+library(ggplot2)
+library(tidyverse)
+library(ggthemes)
+stations_summary%>%
+  ggplot()+
+  geom_point(mapping = aes(x = stations, y = mean), col = "purple")+
+geom_hline(yintercept = mean(stations_summary$mean, na.rm = TRUE), col = "yellow", size = 2)+ 
+  theme_economist() + theme(axis.text.x = element_blank()) + ylab("Average Production over 13 years")
+
+
+```
+
+As can be observed, there are only a few notable outliers and there is a strong central tendency towards the mean.
+
+
+## Average Solar Production
+
+We analysed the average production trend for the 13 year period. It seems that production peaks around mid year, before trending back down towards the end of the year. 
+
+
+```{r graph with all stations mean prod, echo=FALSE}
+stations$Date <- as.Date(stations$Date, format = "%Y%m%d")
+stations$mean_prod <- rowMeans(stations[,2:ncol(stations)])
+stations%>%
+  ggplot()+
+  geom_line(mapping = aes (x = Date, y=mean_prod), linetype = 1, col = "purple") + labs(title = "Solar Production Trend Analysis") + theme_economist() + ylab("Average Production over 13 years")
+
+```
+
+We also looked at the average production trend for the most recent year(2007). It seems that production peaks around end of June, drops in July, peaks again in August and then trends back down towards January. In other words, the month has to be taken into account during the modelling phase.
+
+
+```{r year analysis for 1 station, echo=FALSE}
+library(data.table)
+stations$Date <- as.Date(stations$Date, format = "%Y%m%d")
+stations$mean_prod <- rowMeans(stations[,2:ncol(stations)])
+stations[Date >= "2007-01-01" & Date <= "2007-12-31"] %>%
+  ggplot()+
+  geom_line(mapping = aes (x = Date, y= mean_prod), linetype = 6, col = "purple") + labs(title = "Solar Production Final Year") + theme_economist() + ylab("Monthly Average Production")
+
+```
+
+
+## Map of stations
+
+Finally, we plotted a geographical map of each of the stations in Oklahoma.It appears that all the stations are evenly spread out throughout the entire state. Hovering over each marker provides the mean production for each station.
+
+
+```{r latitude by longitude by station, echo=FALSE}
+
+library(leaflet)
+bind_summary <- cbind(stations_summary, anex)
+cluster_dataset <- bind_summary[,-c("stid")]
+leaflet(data = cluster_dataset) %>% addTiles () %>%
+  addMarkers(~elon, ~nlat, popup = "Oklahoma", label = ~as.character(mean))
+
+```
+
+## Summary
+
+We also carried out a correlation analysis between the stations and the conditions. Nothing relevant to report was discovered. We did find a correlation in the additional dataset for longitudes and latitudes. While they were accounted for in the modelling process, they do not form a part of the EDA report.
+
+The EDA highlighted that the main factor that needs to be considered is the monthly production trend. It is also evident that most of the stations produce within a fixed range, therefore a clustering analysis may be used for the modelling. 
+
+
